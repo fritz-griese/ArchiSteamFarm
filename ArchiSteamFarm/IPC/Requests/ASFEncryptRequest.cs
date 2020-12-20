@@ -19,43 +19,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using Newtonsoft.Json;
 
-namespace ArchiSteamFarm.OfficialPlugins.SteamTokenDumper {
+namespace ArchiSteamFarm.IPC.Requests {
 	[SuppressMessage("ReSharper", "ClassCannotBeInstantiated")]
-	internal sealed class ResponseData {
-#pragma warning disable 649
-		[JsonProperty(PropertyName = "data", Required = Required.Always)]
-		internal readonly InternalData? Data;
-#pragma warning restore 649
+	public sealed class ASFEncryptRequest {
+		/// <summary>
+		///     Encryption method used for encrypting this string.
+		/// </summary>
+		[JsonProperty(Required = Required.Always)]
+		[Required]
+		public readonly ArchiCryptoHelper.ECryptoMethod CryptoMethod;
 
-#pragma warning disable 649
-		[JsonProperty(PropertyName = "success", Required = Required.Always)]
-		internal readonly bool Success;
-#pragma warning restore 649
+		/// <summary>
+		///     String to encrypt with provided <see cref="CryptoMethod" />.
+		/// </summary>
+		[JsonProperty(Required = Required.Always)]
+		[Required]
+		public readonly string? StringToEncrypt;
 
 		[JsonConstructor]
-		private ResponseData() { }
-
-		internal sealed class InternalData {
-#pragma warning disable 649
-			[JsonProperty(PropertyName = "new_apps", Required = Required.Always)]
-			internal readonly uint NewAppsCount;
-#pragma warning restore 649
-
-#pragma warning disable 649
-			[JsonProperty(PropertyName = "new_depots", Required = Required.Always)]
-			internal readonly uint NewDepotsCount;
-#pragma warning restore 649
-
-#pragma warning disable 649
-			[JsonProperty(PropertyName = "new_subs", Required = Required.Always)]
-			internal readonly uint NewSubsCount;
-#pragma warning restore 649
-
-			[JsonConstructor]
-			private InternalData() { }
-		}
+		private ASFEncryptRequest() { }
 	}
 }

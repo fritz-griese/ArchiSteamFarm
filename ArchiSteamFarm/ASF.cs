@@ -51,58 +51,53 @@ namespace ArchiSteamFarm {
 		public static byte LoadBalancingDelay => Math.Max(GlobalConfig?.LoginLimiterDelay ?? 0, GlobalConfig.DefaultLoginLimiterDelay);
 
 		[PublicAPI]
-		public static GlobalConfig GlobalConfig { get; private set; }
+		public static GlobalConfig? GlobalConfig { get; private set; }
 
 		[PublicAPI]
-		public static GlobalDatabase GlobalDatabase { get; private set; }
+		public static GlobalDatabase? GlobalDatabase { get; private set; }
 
 		[PublicAPI]
-		public static WebBrowser WebBrowser { get; internal set; }
+		public static WebBrowser? WebBrowser { get; internal set; }
 
-		internal static ICrossProcessSemaphore ConfirmationsSemaphore { get; private set; }
-		internal static ICrossProcessSemaphore GiftsSemaphore { get; private set; }
-		internal static ICrossProcessSemaphore InventorySemaphore { get; private set; }
-		internal static ICrossProcessSemaphore LoginRateLimitingSemaphore { get; private set; }
-		internal static ICrossProcessSemaphore LoginSemaphore { get; private set; }
-		internal static ImmutableDictionary<string, (ICrossProcessSemaphore RateLimitingSemaphore, SemaphoreSlim OpenConnectionsSemaphore)> WebLimitingSemaphores { get; private set; }
+		internal static ICrossProcessSemaphore? ConfirmationsSemaphore { get; private set; }
+		internal static ICrossProcessSemaphore? GiftsSemaphore { get; private set; }
+		internal static ICrossProcessSemaphore? InventorySemaphore { get; private set; }
+		internal static ICrossProcessSemaphore? LoginRateLimitingSemaphore { get; private set; }
+		internal static ICrossProcessSemaphore? LoginSemaphore { get; private set; }
+		internal static ImmutableDictionary<string, (ICrossProcessSemaphore RateLimitingSemaphore, SemaphoreSlim OpenConnectionsSemaphore)>? WebLimitingSemaphores { get; private set; }
 
 		private static readonly SemaphoreSlim UpdateSemaphore = new SemaphoreSlim(1, 1);
 
-		private static Timer AutoUpdatesTimer;
-		private static FileSystemWatcher FileSystemWatcher;
-		private static ConcurrentDictionary<string, object> LastWriteEvents;
+		private static Timer? AutoUpdatesTimer;
+		private static FileSystemWatcher? FileSystemWatcher;
+		private static ConcurrentDictionary<string, object>? LastWriteEvents;
 
 		[PublicAPI]
 		public static bool IsOwner(ulong steamID) {
 			if (steamID == 0) {
-				ArchiLogger.LogNullError(nameof(steamID));
-
-				return false;
+				throw new ArgumentNullException(nameof(steamID));
 			}
 
-			return (steamID == GlobalConfig.SteamOwnerID) || (Debugging.IsDebugBuild && (steamID == SharedInfo.ArchiSteamID));
+			return (steamID == GlobalConfig?.SteamOwnerID) || (Debugging.IsDebugBuild && (steamID == SharedInfo.ArchiSteamID));
 		}
 
 		internal static string GetFilePath(EFileType fileType) {
 			if (!Enum.IsDefined(typeof(EFileType), fileType)) {
-				ArchiLogger.LogNullError(nameof(fileType));
-
-				return null;
+				throw new ArgumentNullException(nameof(fileType));
 			}
 
-			switch (fileType) {
-				case EFileType.Config:
-					return Path.Combine(SharedInfo.ConfigDirectory, SharedInfo.GlobalConfigFileName);
-				case EFileType.Database:
-					return Path.Combine(SharedInfo.ConfigDirectory, SharedInfo.GlobalDatabaseFileName);
-				default:
-					ArchiLogger.LogGenericError(string.Format(Strings.WarningUnknownValuePleaseReport, nameof(fileType), fileType));
-
-					return null;
-			}
+			return fileType switch {
+				EFileType.Config => Path.Combine(SharedInfo.ConfigDirectory, SharedInfo.GlobalConfigFileName),
+				EFileType.Database => Path.Combine(SharedInfo.ConfigDirectory, SharedInfo.GlobalDatabaseFileName),
+				_ => throw new ArgumentOutOfRangeException(nameof(fileType))
+			};
 		}
 
 		internal static async Task Init() {
+			if (GlobalConfig == null) {
+				throw new ArgumentNullException(nameof(GlobalConfig));
+			}
+
 			if (!PluginsCore.InitPlugins()) {
 				await Task.Delay(10000).ConfigureAwait(false);
 			}
@@ -136,9 +131,7 @@ namespace ArchiSteamFarm {
 
 		internal static void InitGlobalConfig(GlobalConfig globalConfig) {
 			if (globalConfig == null) {
-				ArchiLogger.LogNullError(nameof(globalConfig));
-
-				return;
+				throw new ArgumentNullException(nameof(globalConfig));
 			}
 
 			if (GlobalConfig != null) {
@@ -155,11 +148,11 @@ namespace ArchiSteamFarm {
 			if (!string.IsNullOrEmpty(Program.NetworkGroup)) {
 				using MD5 hashingAlgorithm = MD5.Create();
 
-				networkGroupText = "-" + BitConverter.ToString(hashingAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(Program.NetworkGroup))).Replace("-", "");
+				networkGroupText = "-" + BitConverter.ToString(hashingAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(Program.NetworkGroup!))).Replace("-", "");
 			} else if (!string.IsNullOrEmpty(globalConfig.WebProxyText)) {
 				using MD5 hashingAlgorithm = MD5.Create();
 
-				networkGroupText = "-" + BitConverter.ToString(hashingAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(globalConfig.WebProxyText))).Replace("-", "");
+				networkGroupText = "-" + BitConverter.ToString(hashingAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(globalConfig.WebProxyText!))).Replace("-", "");
 			}
 
 			ConfirmationsSemaphore ??= OS.CreateCrossProcessSemaphore(nameof(ConfirmationsSemaphore) + networkGroupText);
@@ -179,9 +172,7 @@ namespace ArchiSteamFarm {
 
 		internal static void InitGlobalDatabase(GlobalDatabase globalDatabase) {
 			if (globalDatabase == null) {
-				ArchiLogger.LogNullError(nameof(globalDatabase));
-
-				return;
+				throw new ArgumentNullException(nameof(globalDatabase));
 			}
 
 			if (GlobalDatabase != null) {
@@ -192,6 +183,10 @@ namespace ArchiSteamFarm {
 		}
 
 		internal static async Task RestartOrExit() {
+			if (GlobalConfig == null) {
+				throw new ArgumentNullException(nameof(GlobalConfig));
+			}
+
 			if (Program.RestartAllowed && GlobalConfig.AutoRestart) {
 				ArchiLogger.LogGenericInfo(Strings.Restarting);
 				await Task.Delay(5000).ConfigureAwait(false);
@@ -203,8 +198,11 @@ namespace ArchiSteamFarm {
 			}
 		}
 
-		[ItemCanBeNull]
-		internal static async Task<Version> Update(bool updateOverride = false) {
+		internal static async Task<Version?> Update(bool updateOverride = false) {
+			if ((GlobalConfig == null) || (WebBrowser == null)) {
+				throw new ArgumentNullException(nameof(GlobalConfig) + " || " + nameof(WebBrowser));
+			}
+
 			if (!SharedInfo.BuildInfo.CanUpdate || (GlobalConfig.UpdateChannel == GlobalConfig.EUpdateChannel.None)) {
 				return null;
 			}
@@ -234,7 +232,7 @@ namespace ArchiSteamFarm {
 
 				ArchiLogger.LogGenericInfo(Strings.UpdateCheckingNewVersion);
 
-				GitHub.ReleaseResponse releaseResponse = await GitHub.GetLatestRelease(GlobalConfig.UpdateChannel == GlobalConfig.EUpdateChannel.Stable).ConfigureAwait(false);
+				GitHub.ReleaseResponse? releaseResponse = await GitHub.GetLatestRelease(GlobalConfig.UpdateChannel == GlobalConfig.EUpdateChannel.Stable).ConfigureAwait(false);
 
 				if (releaseResponse == null) {
 					ArchiLogger.LogGenericWarning(Strings.ErrorUpdateCheckFailed);
@@ -248,7 +246,7 @@ namespace ArchiSteamFarm {
 					return null;
 				}
 
-				Version newVersion = new Version(releaseResponse.Tag);
+				Version newVersion = new Version(releaseResponse.Tag!);
 
 				ArchiLogger.LogGenericInfo(string.Format(Strings.UpdateVersionInfo, SharedInfo.Version, newVersion));
 
@@ -276,7 +274,7 @@ namespace ArchiSteamFarm {
 				}
 
 				string targetFile = SharedInfo.ASF + "-" + SharedInfo.BuildInfo.Variant + ".zip";
-				GitHub.ReleaseResponse.Asset binaryAsset = releaseResponse.Assets.FirstOrDefault(asset => asset.Name.Equals(targetFile, StringComparison.OrdinalIgnoreCase));
+				GitHub.ReleaseResponse.Asset? binaryAsset = releaseResponse.Assets.FirstOrDefault(asset => !string.IsNullOrEmpty(asset.Name) && asset.Name!.Equals(targetFile, StringComparison.OrdinalIgnoreCase));
 
 				if (binaryAsset == null) {
 					ArchiLogger.LogGenericWarning(Strings.ErrorUpdateNoAssetForThisVersion);
@@ -291,12 +289,22 @@ namespace ArchiSteamFarm {
 				}
 
 				if (!string.IsNullOrEmpty(releaseResponse.ChangelogPlainText)) {
-					ArchiLogger.LogGenericInfo(releaseResponse.ChangelogPlainText);
+					ArchiLogger.LogGenericInfo(releaseResponse.ChangelogPlainText!);
 				}
 
 				ArchiLogger.LogGenericInfo(string.Format(Strings.UpdateDownloadingNewVersion, newVersion, binaryAsset.Size / 1024 / 1024));
 
-				WebBrowser.BinaryResponse response = await WebBrowser.UrlGetToBinaryWithProgress(binaryAsset.DownloadURL).ConfigureAwait(false);
+				Progress<byte> progressReporter = new Progress<byte>();
+
+				progressReporter.ProgressChanged += OnProgressChanged;
+
+				WebBrowser.BinaryResponse? response;
+
+				try {
+					response = await WebBrowser.UrlGetToBinary(binaryAsset.DownloadURL!, progressReporter: progressReporter).ConfigureAwait(false);
+				} finally {
+					progressReporter.ProgressChanged -= OnProgressChanged;
+				}
 
 				if (response?.Content == null) {
 					return null;
@@ -311,10 +319,11 @@ namespace ArchiSteamFarm {
 				}
 
 				try {
-#if !NETFRAMEWORK
-					await
+#if NETFRAMEWORK
+					using MemoryStream memoryStream = new MemoryStream(response.Content);
+#else
+					await using MemoryStream memoryStream = new MemoryStream(response.Content);
 #endif
-						using MemoryStream memoryStream = new MemoryStream(response.Content);
 
 					using ZipArchive zipArchive = new ZipArchive(memoryStream);
 
@@ -344,10 +353,8 @@ namespace ArchiSteamFarm {
 		}
 
 		private static async Task<bool> CanHandleWriteEvent(string filePath) {
-			if (string.IsNullOrEmpty(filePath)) {
-				ArchiLogger.LogNullError(nameof(filePath));
-
-				return false;
+			if (string.IsNullOrEmpty(filePath) || (LastWriteEvents == null)) {
+				throw new ArgumentNullException(nameof(filePath) + " || " + nameof(LastWriteEvents));
 			}
 
 			// Save our event in dictionary
@@ -358,14 +365,12 @@ namespace ArchiSteamFarm {
 			await Task.Delay(1000).ConfigureAwait(false);
 
 			// We're allowed to handle this event if the one that is saved after full second is our event and we succeed in clearing it (we don't care what we're clearing anymore, it doesn't have to be atomic operation)
-			return LastWriteEvents.TryGetValue(filePath, out object savedWriteEvent) && (currentWriteEvent == savedWriteEvent) && LastWriteEvents.TryRemove(filePath, out _);
+			return LastWriteEvents.TryGetValue(filePath, out object? savedWriteEvent) && (currentWriteEvent == savedWriteEvent) && LastWriteEvents.TryRemove(filePath, out _);
 		}
 
 		private static void InitBotsComparer(StringComparer botsComparer) {
 			if (botsComparer == null) {
-				ArchiLogger.LogNullError(nameof(botsComparer));
-
-				return;
+				throw new ArgumentNullException(nameof(botsComparer));
 			}
 
 			if (Bot.Bots != null) {
@@ -378,6 +383,10 @@ namespace ArchiSteamFarm {
 		private static void InitEvents() {
 			if ((FileSystemWatcher != null) || (LastWriteEvents != null) || !Directory.Exists(SharedInfo.ConfigDirectory)) {
 				return;
+			}
+
+			if (Bot.BotsComparer == null) {
+				throw new ArgumentNullException(nameof(Bot.BotsComparer));
 			}
 
 			FileSystemWatcher = new FileSystemWatcher(SharedInfo.ConfigDirectory) { NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite };
@@ -394,9 +403,7 @@ namespace ArchiSteamFarm {
 
 		private static bool IsValidBotName(string botName) {
 			if (string.IsNullOrEmpty(botName)) {
-				ArchiLogger.LogNullError(nameof(botName));
-
-				return false;
+				throw new ArgumentNullException(nameof(botName));
 			}
 
 			if (botName[0] == '.') {
@@ -408,9 +415,7 @@ namespace ArchiSteamFarm {
 
 		private static async void OnChanged(object sender, FileSystemEventArgs e) {
 			if ((sender == null) || (e == null)) {
-				ArchiLogger.LogNullError(nameof(sender) + " || " + nameof(e));
-
-				return;
+				throw new ArgumentNullException(nameof(sender) + " || " + nameof(e));
 			}
 
 			await OnChangedFile(e.Name, e.FullPath).ConfigureAwait(false);
@@ -418,9 +423,7 @@ namespace ArchiSteamFarm {
 
 		private static async Task OnChangedConfigFile(string name, string fullPath) {
 			if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fullPath)) {
-				ArchiLogger.LogNullError(nameof(name) + " || " + nameof(fullPath));
-
-				return;
+				throw new ArgumentNullException(nameof(name) + " || " + nameof(fullPath));
 			}
 
 			await OnCreatedConfigFile(name, fullPath).ConfigureAwait(false);
@@ -428,9 +431,7 @@ namespace ArchiSteamFarm {
 
 		private static async Task OnChangedConfigFile(string name) {
 			if (string.IsNullOrEmpty(name)) {
-				ArchiLogger.LogNullError(nameof(name));
-
-				return;
+				throw new ArgumentNullException(nameof(name));
 			}
 
 			if (!name.Equals(SharedInfo.IPCConfigFile) || (GlobalConfig?.IPC != true)) {
@@ -447,6 +448,10 @@ namespace ArchiSteamFarm {
 		}
 
 		private static async Task OnChangedFile(string name, string fullPath) {
+			if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fullPath)) {
+				throw new ArgumentNullException(nameof(name) + " || " + nameof(fullPath));
+			}
+
 			string extension = Path.GetExtension(name);
 
 			switch (extension) {
@@ -464,9 +469,7 @@ namespace ArchiSteamFarm {
 
 		private static async Task OnChangedKeysFile(string name, string fullPath) {
 			if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fullPath)) {
-				ArchiLogger.LogNullError(nameof(name) + " || " + nameof(fullPath));
-
-				return;
+				throw new ArgumentNullException(nameof(name) + " || " + nameof(fullPath));
 			}
 
 			await OnCreatedKeysFile(name, fullPath).ConfigureAwait(false);
@@ -474,9 +477,7 @@ namespace ArchiSteamFarm {
 
 		private static async void OnCreated(object sender, FileSystemEventArgs e) {
 			if ((sender == null) || (e == null)) {
-				ArchiLogger.LogNullError(nameof(sender) + " || " + nameof(e));
-
-				return;
+				throw new ArgumentNullException(nameof(sender) + " || " + nameof(e));
 			}
 
 			await OnCreatedFile(e.Name, e.FullPath).ConfigureAwait(false);
@@ -484,9 +485,7 @@ namespace ArchiSteamFarm {
 
 		private static async Task OnCreatedConfigFile(string name, string fullPath) {
 			if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fullPath)) {
-				ArchiLogger.LogNullError(nameof(name) + " || " + nameof(fullPath));
-
-				return;
+				throw new ArgumentNullException(nameof(name) + " || " + nameof(fullPath));
 			}
 
 			string extension = Path.GetExtension(name);
@@ -505,9 +504,7 @@ namespace ArchiSteamFarm {
 
 		private static async Task OnCreatedFile(string name, string fullPath) {
 			if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fullPath)) {
-				ArchiLogger.LogNullError(nameof(name) + " || " + nameof(fullPath));
-
-				return;
+				throw new ArgumentNullException(nameof(name) + " || " + nameof(fullPath));
 			}
 
 			string extension = Path.GetExtension(name);
@@ -526,10 +523,8 @@ namespace ArchiSteamFarm {
 		}
 
 		private static async Task OnCreatedJsonFile(string name, string fullPath) {
-			if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fullPath)) {
-				ArchiLogger.LogNullError(nameof(name) + " || " + nameof(fullPath));
-
-				return;
+			if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fullPath) || (Bot.Bots == null)) {
+				throw new ArgumentNullException(nameof(name) + " || " + nameof(fullPath) + " || " + nameof(Bot.Bots));
 			}
 
 			string botName = Path.GetFileNameWithoutExtension(name);
@@ -553,7 +548,7 @@ namespace ArchiSteamFarm {
 				return;
 			}
 
-			if (Bot.Bots.TryGetValue(botName, out Bot bot)) {
+			if (Bot.Bots.TryGetValue(botName, out Bot? bot)) {
 				await bot.OnConfigChanged(false).ConfigureAwait(false);
 			} else {
 				await Bot.RegisterBot(botName).ConfigureAwait(false);
@@ -565,10 +560,8 @@ namespace ArchiSteamFarm {
 		}
 
 		private static async Task OnCreatedKeysFile(string name, string fullPath) {
-			if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fullPath)) {
-				ArchiLogger.LogNullError(nameof(name) + " || " + nameof(fullPath));
-
-				return;
+			if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fullPath) || (Bot.Bots == null)) {
+				throw new ArgumentNullException(nameof(name) + " || " + nameof(fullPath) + " || " + nameof(Bot.Bots));
 			}
 
 			string botName = Path.GetFileNameWithoutExtension(name);
@@ -581,7 +574,7 @@ namespace ArchiSteamFarm {
 				return;
 			}
 
-			if (!Bot.Bots.TryGetValue(botName, out Bot bot)) {
+			if (!Bot.Bots.TryGetValue(botName, out Bot? bot)) {
 				return;
 			}
 
@@ -590,9 +583,7 @@ namespace ArchiSteamFarm {
 
 		private static async void OnDeleted(object sender, FileSystemEventArgs e) {
 			if ((sender == null) || (e == null)) {
-				ArchiLogger.LogNullError(nameof(sender) + " || " + nameof(e));
-
-				return;
+				throw new ArgumentNullException(nameof(sender) + " || " + nameof(e));
 			}
 
 			await OnDeletedFile(e.Name, e.FullPath).ConfigureAwait(false);
@@ -600,9 +591,7 @@ namespace ArchiSteamFarm {
 
 		private static async Task OnDeletedConfigFile(string name, string fullPath) {
 			if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fullPath)) {
-				ArchiLogger.LogNullError(nameof(name) + " || " + nameof(fullPath));
-
-				return;
+				throw new ArgumentNullException(nameof(name) + " || " + nameof(fullPath));
 			}
 
 			string extension = Path.GetExtension(name);
@@ -621,9 +610,7 @@ namespace ArchiSteamFarm {
 
 		private static async Task OnDeletedFile(string name, string fullPath) {
 			if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fullPath)) {
-				ArchiLogger.LogNullError(nameof(name) + " || " + nameof(fullPath));
-
-				return;
+				throw new ArgumentNullException(nameof(name) + " || " + nameof(fullPath));
 			}
 
 			string extension = Path.GetExtension(name);
@@ -638,10 +625,8 @@ namespace ArchiSteamFarm {
 		}
 
 		private static async Task OnDeletedJsonConfigFile(string name, string fullPath) {
-			if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fullPath)) {
-				ArchiLogger.LogNullError(nameof(name) + " || " + nameof(fullPath));
-
-				return;
+			if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fullPath) || (Bot.Bots == null)) {
+				throw new ArgumentNullException(nameof(name) + " || " + nameof(fullPath) + " || " + nameof(Bot.Bots));
 			}
 
 			string botName = Path.GetFileNameWithoutExtension(name);
@@ -677,16 +662,24 @@ namespace ArchiSteamFarm {
 				return;
 			}
 
-			if (Bot.Bots.TryGetValue(botName, out Bot bot)) {
+			if (Bot.Bots.TryGetValue(botName, out Bot? bot)) {
 				await bot.OnConfigChanged(true).ConfigureAwait(false);
 			}
 		}
 
+		private static void OnProgressChanged(object? sender, byte progressPercentage) {
+			const byte printEveryPercentage = 10;
+
+			if (progressPercentage % printEveryPercentage != 0) {
+				return;
+			}
+
+			ArchiLogger.LogGenericDebug($"{progressPercentage}%...");
+		}
+
 		private static async void OnRenamed(object sender, RenamedEventArgs e) {
 			if ((sender == null) || (e == null)) {
-				ArchiLogger.LogNullError(nameof(sender) + " || " + nameof(e));
-
-				return;
+				throw new ArgumentNullException(nameof(sender) + " || " + nameof(e));
 			}
 
 			await OnDeletedFile(e.OldName, e.OldFullPath).ConfigureAwait(false);
@@ -694,8 +687,8 @@ namespace ArchiSteamFarm {
 		}
 
 		private static async Task RegisterBots() {
-			if (Bot.Bots.Count > 0) {
-				return;
+			if ((GlobalConfig == null) || (GlobalDatabase == null) || (WebBrowser == null)) {
+				throw new ArgumentNullException(nameof(GlobalConfig) + " || " + nameof(GlobalDatabase) + " || " + nameof(WebBrowser));
 			}
 
 			// Ensure that we ask for a list of servers if we don't have any saved servers available
@@ -720,7 +713,7 @@ namespace ArchiSteamFarm {
 			HashSet<string> botNames;
 
 			try {
-				botNames = Directory.Exists(SharedInfo.ConfigDirectory) ? Directory.EnumerateFiles(SharedInfo.ConfigDirectory, "*" + SharedInfo.JsonConfigExtension).Select(Path.GetFileNameWithoutExtension).Where(botName => !string.IsNullOrEmpty(botName) && IsValidBotName(botName)).ToHashSet(Bot.BotsComparer) : new HashSet<string>(0);
+				botNames = Directory.Exists(SharedInfo.ConfigDirectory) ? Directory.EnumerateFiles(SharedInfo.ConfigDirectory, "*" + SharedInfo.JsonConfigExtension).Select(Path.GetFileNameWithoutExtension).Where(botName => !string.IsNullOrEmpty(botName) && IsValidBotName(botName)).ToHashSet(Bot.BotsComparer)! : new HashSet<string>(0);
 			} catch (Exception e) {
 				ArchiLogger.LogGenericException(e);
 
@@ -742,6 +735,10 @@ namespace ArchiSteamFarm {
 		}
 
 		private static async Task UpdateAndRestart() {
+			if (GlobalConfig == null) {
+				throw new ArgumentNullException(nameof(GlobalConfig));
+			}
+
 			if (!SharedInfo.BuildInfo.CanUpdate || (GlobalConfig.UpdateChannel == GlobalConfig.EUpdateChannel.None)) {
 				return;
 			}
@@ -759,7 +756,7 @@ namespace ArchiSteamFarm {
 				ArchiLogger.LogGenericInfo(string.Format(Strings.AutoUpdateCheckInfo, autoUpdatePeriod.ToHumanReadable()));
 			}
 
-			Version newVersion = await Update().ConfigureAwait(false);
+			Version? newVersion = await Update().ConfigureAwait(false);
 
 			if ((newVersion == null) || (newVersion <= SharedInfo.Version)) {
 				return;
@@ -770,9 +767,7 @@ namespace ArchiSteamFarm {
 
 		private static bool UpdateFromArchive(ZipArchive archive, string targetDirectory) {
 			if ((archive == null) || string.IsNullOrEmpty(targetDirectory)) {
-				ArchiLogger.LogNullError(nameof(archive) + " || " + nameof(targetDirectory));
-
-				return false;
+				throw new ArgumentNullException(nameof(archive) + " || " + nameof(targetDirectory));
 			}
 
 			// Firstly we'll move all our existing files to a backup directory
@@ -795,7 +790,7 @@ namespace ArchiSteamFarm {
 					return false;
 				}
 
-				string relativeDirectoryName = Path.GetDirectoryName(relativeFilePath);
+				string? relativeDirectoryName = Path.GetDirectoryName(relativeFilePath);
 
 				switch (relativeDirectoryName) {
 					case null:
@@ -854,7 +849,7 @@ namespace ArchiSteamFarm {
 
 				// Check if this file requires its own folder
 				if (zipFile.Name != zipFile.FullName) {
-					string directory = Path.GetDirectoryName(file);
+					string? directory = Path.GetDirectoryName(file);
 
 					if (string.IsNullOrEmpty(directory)) {
 						ArchiLogger.LogNullError(nameof(directory));
@@ -863,7 +858,7 @@ namespace ArchiSteamFarm {
 					}
 
 					if (!Directory.Exists(directory)) {
-						Directory.CreateDirectory(directory);
+						Directory.CreateDirectory(directory!);
 					}
 
 					// We're not interested in extracting placeholder files (but we still want directories created for them, done above)

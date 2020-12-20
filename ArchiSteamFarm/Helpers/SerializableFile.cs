@@ -29,7 +29,7 @@ namespace ArchiSteamFarm.Helpers {
 	public abstract class SerializableFile : IDisposable {
 		private readonly SemaphoreSlim FileSemaphore = new SemaphoreSlim(1, 1);
 
-		protected string FilePath { private get; set; }
+		protected string? FilePath { private get; set; }
 
 		private bool ReadOnly;
 		private bool SavingScheduled;
@@ -37,7 +37,11 @@ namespace ArchiSteamFarm.Helpers {
 		public virtual void Dispose() => FileSemaphore.Dispose();
 
 		protected async Task Save() {
-			if (ReadOnly || string.IsNullOrEmpty(FilePath)) {
+			if (string.IsNullOrEmpty(FilePath)) {
+				throw new ArgumentNullException(nameof(FilePath));
+			}
+
+			if (ReadOnly) {
 				return;
 			}
 
@@ -74,9 +78,9 @@ namespace ArchiSteamFarm.Helpers {
 				await RuntimeCompatibility.File.WriteAllTextAsync(newFilePath, json).ConfigureAwait(false);
 
 				if (File.Exists(FilePath)) {
-					File.Replace(newFilePath, FilePath, null);
+					File.Replace(newFilePath, FilePath!, null);
 				} else {
-					File.Move(newFilePath, FilePath);
+					File.Move(newFilePath, FilePath!);
 				}
 			} catch (Exception e) {
 				ASF.ArchiLogger.LogGenericException(e);

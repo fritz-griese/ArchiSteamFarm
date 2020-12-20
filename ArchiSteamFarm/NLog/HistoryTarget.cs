@@ -62,9 +62,7 @@ namespace ArchiSteamFarm.NLog {
 
 		protected override void Write(LogEventInfo logEvent) {
 			if (logEvent == null) {
-				ASF.ArchiLogger.LogNullError(nameof(logEvent));
-
-				return;
+				throw new ArgumentNullException(nameof(logEvent));
 			}
 
 			base.Write(logEvent);
@@ -75,12 +73,12 @@ namespace ArchiSteamFarm.NLog {
 			NewHistoryEntry?.Invoke(this, new NewHistoryEntryArgs(message));
 		}
 
-		internal event EventHandler<NewHistoryEntryArgs> NewHistoryEntry;
+		internal event EventHandler<NewHistoryEntryArgs>? NewHistoryEntry;
 
 		internal sealed class NewHistoryEntryArgs : EventArgs {
 			internal readonly string Message;
 
-			internal NewHistoryEntryArgs([NotNull] string message) => Message = message ?? throw new ArgumentNullException(nameof(message));
+			internal NewHistoryEntryArgs(string message) => Message = message ?? throw new ArgumentNullException(nameof(message));
 		}
 	}
 }

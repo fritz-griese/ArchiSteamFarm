@@ -25,7 +25,6 @@ using System.IO;
 using System.Security.AccessControl;
 using System.Threading;
 using System.Threading.Tasks;
-using JetBrains.Annotations;
 
 namespace ArchiSteamFarm.Helpers {
 	internal sealed class CrossProcessFileBasedSemaphore : ICrossProcessSemaphore {
@@ -34,9 +33,9 @@ namespace ArchiSteamFarm.Helpers {
 		private readonly string FilePath;
 		private readonly SemaphoreSlim LocalSemaphore = new SemaphoreSlim(1, 1);
 
-		private FileStream FileLock;
+		private FileStream? FileLock;
 
-		internal CrossProcessFileBasedSemaphore([NotNull] string name) {
+		internal CrossProcessFileBasedSemaphore(string name) {
 			if (string.IsNullOrEmpty(name)) {
 				throw new ArgumentNullException(nameof(name));
 			}
@@ -151,7 +150,7 @@ namespace ArchiSteamFarm.Helpers {
 				return;
 			}
 
-			string directoryPath = Path.GetDirectoryName(FilePath);
+			string? directoryPath = Path.GetDirectoryName(FilePath);
 
 			if (string.IsNullOrEmpty(directoryPath)) {
 				ASF.ArchiLogger.LogNullError(nameof(directoryPath));
@@ -160,15 +159,15 @@ namespace ArchiSteamFarm.Helpers {
 			}
 
 			if (!Directory.Exists(directoryPath)) {
-				Directory.CreateDirectory(directoryPath);
+				Directory.CreateDirectory(directoryPath!);
 
 				if (OS.IsUnix) {
-					OS.UnixSetFileAccess(directoryPath, OS.EUnixPermission.Combined777);
+					OS.UnixSetFileAccess(directoryPath!, OS.EUnixPermission.Combined777);
 				} else {
-					DirectoryInfo directoryInfo = new DirectoryInfo(directoryPath);
+					DirectoryInfo directoryInfo = new DirectoryInfo(directoryPath!);
 
 					try {
-						DirectorySecurity directorySecurity = new DirectorySecurity(directoryPath, AccessControlSections.All);
+						DirectorySecurity directorySecurity = new DirectorySecurity(directoryPath!, AccessControlSections.All);
 
 						directoryInfo.SetAccessControl(directorySecurity);
 					} catch (PrivilegeNotHeldException e) {

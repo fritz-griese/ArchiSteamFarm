@@ -44,9 +44,7 @@ namespace ArchiSteamFarm {
 		[PublicAPI]
 		public static string GetArgsAsText(string[] args, byte argsToSkip, string delimiter) {
 			if ((args == null) || (args.Length <= argsToSkip) || string.IsNullOrEmpty(delimiter)) {
-				ASF.ArchiLogger.LogNullError(nameof(args) + " || " + nameof(argsToSkip) + " || " + nameof(delimiter));
-
-				return null;
+				throw new ArgumentNullException(nameof(args) + " || " + nameof(argsToSkip) + " || " + nameof(delimiter));
 			}
 
 			return string.Join(delimiter, args.Skip(argsToSkip));
@@ -55,25 +53,27 @@ namespace ArchiSteamFarm {
 		[PublicAPI]
 		public static string GetArgsAsText(string text, byte argsToSkip) {
 			if (string.IsNullOrEmpty(text)) {
-				ASF.ArchiLogger.LogNullError(nameof(text));
-
-				return null;
+				throw new ArgumentNullException(nameof(text));
 			}
 
-			string[] args = text.Split((char[]) null, argsToSkip + 1, StringSplitOptions.RemoveEmptyEntries);
+			string[] args = text.Split(new char[0], argsToSkip + 1, StringSplitOptions.RemoveEmptyEntries);
 
 			return args[^1];
 		}
 
 		[PublicAPI]
-		public static string GetAttributeValue(this INode node, string attributeName) {
-			if ((node == null) || string.IsNullOrEmpty(attributeName)) {
-				ASF.ArchiLogger.LogNullError(nameof(node) + " || " + nameof(attributeName));
-
-				return null;
+		public static string? GetCookieValue(this CookieContainer cookieContainer, string url, string name) {
+			if ((cookieContainer == null) || string.IsNullOrEmpty(url) || string.IsNullOrEmpty(name)) {
+				throw new ArgumentNullException(nameof(cookieContainer) + " || " + nameof(url) + " || " + nameof(name));
 			}
 
-			return node is IElement element ? element.GetAttribute(attributeName) : null;
+			CookieCollection cookies = cookieContainer.GetCookies(new Uri(url));
+
+#if NETFRAMEWORK
+			return cookies.Count > 0 ? (from Cookie cookie in cookies where cookie.Name == name select cookie.Value).FirstOrDefault() : null;
+#else
+			return cookies.Count > 0 ? cookies.FirstOrDefault(cookie => cookie.Name == name)?.Value : null;
+#endif
 		}
 
 		[PublicAPI]
@@ -82,9 +82,7 @@ namespace ArchiSteamFarm {
 		[PublicAPI]
 		public static async void InBackground(Action action, bool longRunning = false) {
 			if (action == null) {
-				ASF.ArchiLogger.LogNullError(nameof(action));
-
-				return;
+				throw new ArgumentNullException(nameof(action));
 			}
 
 			TaskCreationOptions options = TaskCreationOptions.DenyChildAttach;
@@ -99,9 +97,7 @@ namespace ArchiSteamFarm {
 		[PublicAPI]
 		public static async void InBackground<T>(Func<T> function, bool longRunning = false) {
 			if (function == null) {
-				ASF.ArchiLogger.LogNullError(nameof(function));
-
-				return;
+				throw new ArgumentNullException(nameof(function));
 			}
 
 			TaskCreationOptions options = TaskCreationOptions.DenyChildAttach;
@@ -116,14 +112,12 @@ namespace ArchiSteamFarm {
 		[PublicAPI]
 		public static async Task<IList<T>> InParallel<T>(IEnumerable<Task<T>> tasks) {
 			if (tasks == null) {
-				ASF.ArchiLogger.LogNullError(nameof(tasks));
-
-				return null;
+				throw new ArgumentNullException(nameof(tasks));
 			}
 
 			IList<T> results;
 
-			switch (ASF.GlobalConfig.OptimizationMode) {
+			switch (ASF.GlobalConfig?.OptimizationMode) {
 				case GlobalConfig.EOptimizationMode.MinMemoryUsage:
 					results = new List<T>();
 
@@ -144,12 +138,10 @@ namespace ArchiSteamFarm {
 		[PublicAPI]
 		public static async Task InParallel(IEnumerable<Task> tasks) {
 			if (tasks == null) {
-				ASF.ArchiLogger.LogNullError(nameof(tasks));
-
-				return;
+				throw new ArgumentNullException(nameof(tasks));
 			}
 
-			switch (ASF.GlobalConfig.OptimizationMode) {
+			switch (ASF.GlobalConfig?.OptimizationMode) {
 				case GlobalConfig.EOptimizationMode.MinMemoryUsage:
 					foreach (Task task in tasks) {
 						await task.ConfigureAwait(false);
@@ -167,11 +159,12 @@ namespace ArchiSteamFarm {
 		public static bool IsClientErrorCode(this HttpStatusCode statusCode) => (statusCode >= HttpStatusCode.BadRequest) && (statusCode < HttpStatusCode.InternalServerError);
 
 		[PublicAPI]
+		public static bool IsServerErrorCode(this HttpStatusCode statusCode) => (statusCode >= HttpStatusCode.InternalServerError) && (statusCode < (HttpStatusCode) 600);
+
+		[PublicAPI]
 		public static bool IsValidCdKey(string key) {
 			if (string.IsNullOrEmpty(key)) {
-				ASF.ArchiLogger.LogNullError(nameof(key));
-
-				return false;
+				throw new ArgumentNullException(nameof(key));
 			}
 
 			return Regex.IsMatch(key, @"^[0-9A-Z]{4,7}-[0-9A-Z]{4,7}-[0-9A-Z]{4,7}(?:(?:-[0-9A-Z]{4,7})?(?:-[0-9A-Z]{4,7}))?$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -180,9 +173,7 @@ namespace ArchiSteamFarm {
 		[PublicAPI]
 		public static bool IsValidHexadecimalText(string text) {
 			if (string.IsNullOrEmpty(text)) {
-				ASF.ArchiLogger.LogNullError(nameof(text));
-
-				return false;
+				throw new ArgumentNullException(nameof(text));
 			}
 
 			return (text.Length % 2 == 0) && text.All(Uri.IsHexDigit);
@@ -225,23 +216,17 @@ namespace ArchiSteamFarm {
 			}
 		}
 
-		[ItemNotNull]
-		[NotNull]
 		[PublicAPI]
-		public static List<IElement> SelectElementNodes([NotNull] this IElement element, string xpath) => element.SelectNodes(xpath).Cast<IElement>().ToList();
+		public static List<IElement> SelectElementNodes(this IElement element, string xpath) => element.SelectNodes(xpath).Cast<IElement>().ToList();
 
-		[ItemNotNull]
-		[NotNull]
 		[PublicAPI]
-		public static List<IElement> SelectNodes([NotNull] this IDocument document, string xpath) => document.Body.SelectNodes(xpath).Cast<IElement>().ToList();
+		public static List<IElement> SelectNodes(this IDocument document, string xpath) => document.Body.SelectNodes(xpath).Cast<IElement>().ToList();
 
-		[CanBeNull]
 		[PublicAPI]
-		public static IElement SelectSingleElementNode([NotNull] this IElement element, string xpath) => (IElement) element.SelectSingleNode(xpath);
+		public static IElement? SelectSingleElementNode(this IElement element, string xpath) => (IElement?) element.SelectSingleNode(xpath);
 
-		[CanBeNull]
 		[PublicAPI]
-		public static IElement SelectSingleNode([NotNull] this IDocument document, string xpath) => (IElement) document.Body.SelectSingleNode(xpath);
+		public static IElement? SelectSingleNode(this IDocument document, string xpath) => (IElement?) document.Body.SelectSingleNode(xpath);
 
 		[PublicAPI]
 		public static IEnumerable<T> ToEnumerable<T>(this T item) {
@@ -251,9 +236,8 @@ namespace ArchiSteamFarm {
 		[PublicAPI]
 		public static string ToHumanReadable(this TimeSpan timeSpan) => timeSpan.Humanize(3, maxUnit: TimeUnit.Year, minUnit: TimeUnit.Second);
 
-		[NotNull]
 		[PublicAPI]
-		public static Task<T> ToLongRunningTask<T>([NotNull] this AsyncJob<T> job) where T : CallbackMsg {
+		public static Task<T> ToLongRunningTask<T>(this AsyncJob<T> job) where T : CallbackMsg {
 			if (job == null) {
 				throw new ArgumentNullException(nameof(job));
 			}
@@ -263,9 +247,8 @@ namespace ArchiSteamFarm {
 			return job.ToTask();
 		}
 
-		[NotNull]
 		[PublicAPI]
-		public static Task<AsyncJobMultiple<T>.ResultSet> ToLongRunningTask<T>([NotNull] this AsyncJobMultiple<T> job) where T : CallbackMsg {
+		public static Task<AsyncJobMultiple<T>.ResultSet> ToLongRunningTask<T>(this AsyncJobMultiple<T> job) where T : CallbackMsg {
 			if (job == null) {
 				throw new ArgumentNullException(nameof(job));
 			}
@@ -277,9 +260,7 @@ namespace ArchiSteamFarm {
 
 		internal static void DeleteEmptyDirectoriesRecursively(string directory) {
 			if (string.IsNullOrEmpty(directory)) {
-				ASF.ArchiLogger.LogNullError(nameof(directory));
-
-				return;
+				throw new ArgumentNullException(nameof(directory));
 			}
 
 			if (!Directory.Exists(directory)) {
@@ -299,33 +280,9 @@ namespace ArchiSteamFarm {
 			}
 		}
 
-		internal static string GetCookieValue(this CookieContainer cookieContainer, string url, string name) {
-			if ((cookieContainer == null) || string.IsNullOrEmpty(url) || string.IsNullOrEmpty(name)) {
-				ASF.ArchiLogger.LogNullError(nameof(cookieContainer) + " || " + nameof(url) + " || " + nameof(name));
-
-				return null;
-			}
-
-			Uri uri;
-
-			try {
-				uri = new Uri(url);
-			} catch (UriFormatException e) {
-				ASF.ArchiLogger.LogGenericException(e);
-
-				return null;
-			}
-
-			CookieCollection cookies = cookieContainer.GetCookies(uri);
-
-			return cookies.Count > 0 ? (from Cookie cookie in cookies where cookie.Name.Equals(name) select cookie.Value).FirstOrDefault() : null;
-		}
-
 		internal static bool RelativeDirectoryStartsWith(string directory, params string[] prefixes) {
 			if (string.IsNullOrEmpty(directory) || (prefixes == null) || (prefixes.Length == 0)) {
-				ASF.ArchiLogger.LogNullError(nameof(directory) + " || " + nameof(prefixes));
-
-				return false;
+				throw new ArgumentNullException(nameof(directory) + " || " + nameof(prefixes));
 			}
 
 			return (from prefix in prefixes where directory.Length > prefix.Length let pathSeparator = directory[prefix.Length] where (pathSeparator == Path.DirectorySeparatorChar) || (pathSeparator == Path.AltDirectorySeparatorChar) select prefix).Any(prefix => directory.StartsWith(prefix, StringComparison.Ordinal));

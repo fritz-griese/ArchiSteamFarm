@@ -31,22 +31,18 @@ using System.Reflection;
 using System.Threading.Tasks;
 using ArchiSteamFarm.Json;
 using ArchiSteamFarm.Localization;
-using JetBrains.Annotations;
 using Newtonsoft.Json.Linq;
 using SteamKit2;
 
 namespace ArchiSteamFarm.Plugins {
 	internal static class PluginsCore {
-		internal static bool HasCustomPluginsLoaded => HasActivePluginsLoaded && ActivePlugins.Any(plugin => !(plugin is OfficialPlugin officialPlugin) || !officialPlugin.HasSameVersion());
+		internal static bool HasCustomPluginsLoaded => ActivePlugins?.Any(plugin => !(plugin is OfficialPlugin officialPlugin) || !officialPlugin.HasSameVersion()) == true;
 
 		[ImportMany]
-		internal static ImmutableHashSet<IPlugin> ActivePlugins { get; private set; }
+		internal static ImmutableHashSet<IPlugin>? ActivePlugins { get; private set; }
 
-		private static bool HasActivePluginsLoaded => ActivePlugins?.Count > 0;
-
-		[ItemNotNull]
 		internal static async Task<StringComparer> GetBotsComparer() {
-			if (!HasActivePluginsLoaded) {
+			if (ActivePlugins == null) {
 				return StringComparer.Ordinal;
 			}
 
@@ -60,13 +56,13 @@ namespace ArchiSteamFarm.Plugins {
 				return StringComparer.Ordinal;
 			}
 
-			StringComparer result = results.FirstOrDefault(comparer => comparer != null);
+			StringComparer? result = results.FirstOrDefault(comparer => comparer != null);
 
 			return result ?? StringComparer.Ordinal;
 		}
 
 		internal static async Task<uint> GetChangeNumberToStartFrom() {
-			if (!HasActivePluginsLoaded) {
+			if (ActivePlugins == null) {
 				return 0;
 			}
 
@@ -90,11 +86,11 @@ namespace ArchiSteamFarm.Plugins {
 		}
 
 		internal static bool InitPlugins() {
-			if (HasActivePluginsLoaded) {
+			if (ActivePlugins != null) {
 				return false;
 			}
 
-			HashSet<Assembly> assemblies = LoadAssemblies();
+			HashSet<Assembly>? assemblies = LoadAssemblies();
 
 			if ((assemblies == null) || (assemblies.Count == 0)) {
 				ASF.ArchiLogger.LogGenericTrace(Strings.NothingFound);
@@ -160,13 +156,13 @@ namespace ArchiSteamFarm.Plugins {
 			return invalidPlugins.Count == 0;
 		}
 
-		internal static HashSet<Assembly> LoadAssemblies() {
-			HashSet<Assembly> assemblies = null;
+		internal static HashSet<Assembly>? LoadAssemblies() {
+			HashSet<Assembly>? assemblies = null;
 
 			string pluginsPath = Path.Combine(SharedInfo.HomeDirectory, SharedInfo.PluginsDirectory);
 
 			if (Directory.Exists(pluginsPath)) {
-				HashSet<Assembly> loadedAssemblies = LoadAssembliesFrom(pluginsPath);
+				HashSet<Assembly>? loadedAssemblies = LoadAssembliesFrom(pluginsPath);
 
 				if ((loadedAssemblies != null) && (loadedAssemblies.Count > 0)) {
 					assemblies = loadedAssemblies;
@@ -176,7 +172,7 @@ namespace ArchiSteamFarm.Plugins {
 			string customPluginsPath = Path.Combine(Directory.GetCurrentDirectory(), SharedInfo.PluginsDirectory);
 
 			if (Directory.Exists(customPluginsPath)) {
-				HashSet<Assembly> loadedAssemblies = LoadAssembliesFrom(customPluginsPath);
+				HashSet<Assembly>? loadedAssemblies = LoadAssembliesFrom(customPluginsPath);
 
 				if ((loadedAssemblies != null) && (loadedAssemblies.Count > 0)) {
 					if ((assemblies != null) && (assemblies.Count > 0)) {
@@ -190,8 +186,8 @@ namespace ArchiSteamFarm.Plugins {
 			return assemblies;
 		}
 
-		internal static async Task OnASFInitModules(IReadOnlyDictionary<string, JToken> additionalConfigProperties = null) {
-			if (!HasActivePluginsLoaded) {
+		internal static async Task OnASFInitModules(IReadOnlyDictionary<string, JToken>? additionalConfigProperties = null) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return;
 			}
 
@@ -202,19 +198,16 @@ namespace ArchiSteamFarm.Plugins {
 			}
 		}
 
-		[ItemCanBeNull]
-		internal static async Task<string> OnBotCommand(Bot bot, ulong steamID, string message, string[] args) {
+		internal static async Task<string?> OnBotCommand(Bot bot, ulong steamID, string message, string[] args) {
 			if ((bot == null) || (steamID == 0) || !new SteamID(steamID).IsIndividualAccount || string.IsNullOrEmpty(message) || (args == null) || (args.Length == 0)) {
-				ASF.ArchiLogger.LogNullError(nameof(bot) + " || " + nameof(steamID) + " || " + nameof(message) + " || " + nameof(args));
+				throw new ArgumentNullException(nameof(bot) + " || " + nameof(steamID) + " || " + nameof(message) + " || " + nameof(args));
+			}
 
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return null;
 			}
 
-			if (!HasActivePluginsLoaded) {
-				return null;
-			}
-
-			IList<string> responses;
+			IList<string?> responses;
 
 			try {
 				responses = await Utilities.InParallel(ActivePlugins.OfType<IBotCommand>().Select(plugin => plugin.OnBotCommand(bot, steamID, message, args))).ConfigureAwait(false);
@@ -229,12 +222,10 @@ namespace ArchiSteamFarm.Plugins {
 
 		internal static async Task OnBotDestroy(Bot bot) {
 			if (bot == null) {
-				ASF.ArchiLogger.LogNullError(nameof(bot));
-
-				return;
+				throw new ArgumentNullException(nameof(bot));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return;
 			}
 
@@ -247,12 +238,10 @@ namespace ArchiSteamFarm.Plugins {
 
 		internal static async Task OnBotDisconnected(Bot bot, EResult reason) {
 			if (bot == null) {
-				ASF.ArchiLogger.LogNullError(nameof(bot));
-
-				return;
+				throw new ArgumentNullException(nameof(bot));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return;
 			}
 
@@ -265,12 +254,10 @@ namespace ArchiSteamFarm.Plugins {
 
 		internal static async Task OnBotFarmingFinished(Bot bot, bool farmedSomething) {
 			if (bot == null) {
-				ASF.ArchiLogger.LogNullError(nameof(bot));
-
-				return;
+				throw new ArgumentNullException(nameof(bot));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return;
 			}
 
@@ -283,12 +270,10 @@ namespace ArchiSteamFarm.Plugins {
 
 		internal static async Task OnBotFarmingStarted(Bot bot) {
 			if (bot == null) {
-				ASF.ArchiLogger.LogNullError(nameof(bot));
-
-				return;
+				throw new ArgumentNullException(nameof(bot));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return;
 			}
 
@@ -301,12 +286,10 @@ namespace ArchiSteamFarm.Plugins {
 
 		internal static async Task OnBotFarmingStopped(Bot bot) {
 			if (bot == null) {
-				ASF.ArchiLogger.LogNullError(nameof(bot));
-
-				return;
+				throw new ArgumentNullException(nameof(bot));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return;
 			}
 
@@ -319,12 +302,10 @@ namespace ArchiSteamFarm.Plugins {
 
 		internal static async Task<bool> OnBotFriendRequest(Bot bot, ulong steamID) {
 			if ((bot == null) || (steamID == 0) || !new SteamID(steamID).IsValid) {
-				ASF.ArchiLogger.LogNullError(nameof(bot) + " || " + nameof(steamID));
-
-				return false;
+				throw new ArgumentNullException(nameof(bot) + " || " + nameof(steamID));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return false;
 			}
 
@@ -343,12 +324,10 @@ namespace ArchiSteamFarm.Plugins {
 
 		internal static async Task OnBotInit(Bot bot) {
 			if (bot == null) {
-				ASF.ArchiLogger.LogNullError(nameof(bot));
-
-				return;
+				throw new ArgumentNullException(nameof(bot));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return;
 			}
 
@@ -359,14 +338,12 @@ namespace ArchiSteamFarm.Plugins {
 			}
 		}
 
-		internal static async Task OnBotInitModules(Bot bot, IReadOnlyDictionary<string, JToken> additionalConfigProperties = null) {
+		internal static async Task OnBotInitModules(Bot bot, IReadOnlyDictionary<string, JToken>? additionalConfigProperties = null) {
 			if (bot == null) {
-				ASF.ArchiLogger.LogNullError(nameof(bot));
-
-				return;
+				throw new ArgumentNullException(nameof(bot));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return;
 			}
 
@@ -379,12 +356,10 @@ namespace ArchiSteamFarm.Plugins {
 
 		internal static async Task OnBotLoggedOn(Bot bot) {
 			if (bot == null) {
-				ASF.ArchiLogger.LogNullError(nameof(bot));
-
-				return;
+				throw new ArgumentNullException(nameof(bot));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return;
 			}
 
@@ -395,19 +370,16 @@ namespace ArchiSteamFarm.Plugins {
 			}
 		}
 
-		[ItemCanBeNull]
-		internal static async Task<string> OnBotMessage(Bot bot, ulong steamID, string message) {
+		internal static async Task<string?> OnBotMessage(Bot bot, ulong steamID, string message) {
 			if ((bot == null) || (steamID == 0) || !new SteamID(steamID).IsIndividualAccount || string.IsNullOrEmpty(message)) {
-				ASF.ArchiLogger.LogNullError(nameof(bot) + " || " + nameof(steamID) + " || " + nameof(message));
+				throw new ArgumentNullException(nameof(bot) + " || " + nameof(steamID) + " || " + nameof(message));
+			}
 
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return null;
 			}
 
-			if (!HasActivePluginsLoaded) {
-				return null;
-			}
-
-			IList<string> responses;
+			IList<string?> responses;
 
 			try {
 				responses = await Utilities.InParallel(ActivePlugins.OfType<IBotMessage>().Select(plugin => plugin.OnBotMessage(bot, steamID, message))).ConfigureAwait(false);
@@ -422,12 +394,10 @@ namespace ArchiSteamFarm.Plugins {
 
 		internal static async Task OnBotSteamCallbacksInit(Bot bot, CallbackManager callbackManager) {
 			if ((bot == null) || (callbackManager == null)) {
-				ASF.ArchiLogger.LogNullError(nameof(bot) + " || " + nameof(callbackManager));
-
-				return;
+				throw new ArgumentNullException(nameof(bot) + " || " + nameof(callbackManager));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return;
 			}
 
@@ -438,18 +408,16 @@ namespace ArchiSteamFarm.Plugins {
 			}
 		}
 
-		internal static async Task<HashSet<ClientMsgHandler>> OnBotSteamHandlersInit(Bot bot) {
+		internal static async Task<HashSet<ClientMsgHandler>?> OnBotSteamHandlersInit(Bot bot) {
 			if (bot == null) {
-				ASF.ArchiLogger.LogNullError(nameof(bot));
+				throw new ArgumentNullException(nameof(bot));
+			}
 
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return null;
 			}
 
-			if (!HasActivePluginsLoaded) {
-				return null;
-			}
-
-			IList<IReadOnlyCollection<ClientMsgHandler>> responses;
+			IList<IReadOnlyCollection<ClientMsgHandler>?> responses;
 
 			try {
 				responses = await Utilities.InParallel(ActivePlugins.OfType<IBotSteamClient>().Select(plugin => Task.Run(() => plugin.OnBotSteamHandlersInit(bot)))).ConfigureAwait(false);
@@ -464,12 +432,10 @@ namespace ArchiSteamFarm.Plugins {
 
 		internal static async Task<bool> OnBotTradeOffer(Bot bot, Steam.TradeOffer tradeOffer) {
 			if ((bot == null) || (tradeOffer == null)) {
-				ASF.ArchiLogger.LogNullError(nameof(bot) + " || " + nameof(tradeOffer));
-
-				return false;
+				throw new ArgumentNullException(nameof(bot) + " || " + nameof(tradeOffer));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return false;
 			}
 
@@ -488,12 +454,10 @@ namespace ArchiSteamFarm.Plugins {
 
 		internal static async Task OnBotTradeOfferResults(Bot bot, IReadOnlyCollection<Trading.ParseTradeResult> tradeResults) {
 			if ((bot == null) || (tradeResults == null) || (tradeResults.Count == 0)) {
-				ASF.ArchiLogger.LogNullError(nameof(bot) + " || " + nameof(tradeResults));
-
-				return;
+				throw new ArgumentNullException(nameof(bot) + " || " + nameof(tradeResults));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return;
 			}
 
@@ -506,12 +470,10 @@ namespace ArchiSteamFarm.Plugins {
 
 		internal static async Task OnBotUserNotifications(Bot bot, IReadOnlyCollection<ArchiHandler.UserNotificationsCallback.EUserNotification> newNotifications) {
 			if ((bot == null) || (newNotifications == null) || (newNotifications.Count == 0)) {
-				ASF.ArchiLogger.LogNullError(nameof(bot) + " || " + nameof(newNotifications));
-
-				return;
+				throw new ArgumentNullException(nameof(bot) + " || " + nameof(newNotifications));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return;
 			}
 
@@ -524,12 +486,10 @@ namespace ArchiSteamFarm.Plugins {
 
 		internal static async Task OnPICSChanges(uint currentChangeNumber, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> appChanges, IReadOnlyDictionary<uint, SteamApps.PICSChangesCallback.PICSChangeData> packageChanges) {
 			if ((currentChangeNumber == 0) || (appChanges == null) || (packageChanges == null)) {
-				ASF.ArchiLogger.LogNullError(nameof(currentChangeNumber) + " || " + nameof(appChanges) + " || " + nameof(packageChanges));
-
-				return;
+				throw new ArgumentNullException(nameof(currentChangeNumber) + " || " + nameof(appChanges) + " || " + nameof(packageChanges));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return;
 			}
 
@@ -542,12 +502,10 @@ namespace ArchiSteamFarm.Plugins {
 
 		internal static async Task OnPICSChangesRestart(uint currentChangeNumber) {
 			if (currentChangeNumber == 0) {
-				ASF.ArchiLogger.LogNullError(nameof(currentChangeNumber));
-
-				return;
+				throw new ArgumentNullException(nameof(currentChangeNumber));
 			}
 
-			if (!HasActivePluginsLoaded) {
+			if ((ActivePlugins == null) || (ActivePlugins.Count == 0)) {
 				return;
 			}
 
@@ -558,11 +516,9 @@ namespace ArchiSteamFarm.Plugins {
 			}
 		}
 
-		private static HashSet<Assembly> LoadAssembliesFrom(string path) {
+		private static HashSet<Assembly>? LoadAssembliesFrom(string path) {
 			if (string.IsNullOrEmpty(path)) {
-				ASF.ArchiLogger.LogNullError(nameof(path));
-
-				return null;
+				throw new ArgumentNullException(nameof(path));
 			}
 
 			if (!Directory.Exists(path)) {

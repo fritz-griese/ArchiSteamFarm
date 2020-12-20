@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <Version>4.2.4.0</Version>
+    <Version>4.3.0.7</Version>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -13,6 +13,7 @@
     <ErrorReport>none</ErrorReport>
     <LangVersion>latest</LangVersion>
     <NoWarn>1591</NoWarn>
+    <Nullable>enable</Nullable>
     <PackageIcon>../resources/ASF.ico</PackageIcon>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/JustArchiNET/ArchiSteamFarm</PackageProjectUrl>

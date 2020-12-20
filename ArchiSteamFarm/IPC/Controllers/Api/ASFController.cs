@@ -34,11 +34,36 @@ namespace ArchiSteamFarm.IPC.Controllers.Api {
 	[Route("Api/ASF")]
 	public sealed class ASFController : ArchiController {
 		/// <summary>
+		///     Encrypts data with ASF encryption mechanisms using provided details.
+		/// </summary>
+		[Consumes("application/json")]
+		[HttpPost("Encrypt")]
+		[ProducesResponseType(typeof(GenericResponse<string>), (int) HttpStatusCode.OK)]
+		[ProducesResponseType(typeof(GenericResponse), (int) HttpStatusCode.BadRequest)]
+		public ActionResult<GenericResponse> ASFEncryptPost([FromBody] ASFEncryptRequest request) {
+			if (request == null) {
+				throw new ArgumentNullException(nameof(request));
+			}
+
+			if (string.IsNullOrEmpty(request.StringToEncrypt)) {
+				return BadRequest(new GenericResponse(false, string.Format(Strings.ErrorIsEmpty, nameof(request.StringToEncrypt))));
+			}
+
+			string? encryptedString = Actions.Encrypt(request.CryptoMethod, request.StringToEncrypt!);
+
+			return Ok(new GenericResponse<string>(encryptedString));
+		}
+
+		/// <summary>
 		///     Fetches common info related to ASF as a whole.
 		/// </summary>
 		[HttpGet]
 		[ProducesResponseType(typeof(GenericResponse<ASFResponse>), (int) HttpStatusCode.OK)]
 		public ActionResult<GenericResponse<ASFResponse>> ASFGet() {
+			if (ASF.GlobalConfig == null) {
+				throw new ArgumentNullException(nameof(ASF.GlobalConfig));
+			}
+
 			uint memoryUsage = (uint) GC.GetTotalMemory(false) / 1024;
 
 			ASFResponse result = new ASFResponse(SharedInfo.BuildInfo.Variant, ASF.GlobalConfig, memoryUsage, RuntimeCompatibility.ProcessStartTime, SharedInfo.Version);
@@ -54,13 +79,15 @@ namespace ArchiSteamFarm.IPC.Controllers.Api {
 		[ProducesResponseType(typeof(GenericResponse), (int) HttpStatusCode.OK)]
 		[ProducesResponseType(typeof(GenericResponse), (int) HttpStatusCode.BadRequest)]
 		public async Task<ActionResult<GenericResponse>> ASFPost([FromBody] ASFRequest request) {
-			if (request == null) {
-				ASF.ArchiLogger.LogNullError(nameof(request));
-
-				return BadRequest(new GenericResponse(false, string.Format(Strings.ErrorIsEmpty, nameof(request))));
+			if ((request == null) || (ASF.GlobalConfig == null)) {
+				throw new ArgumentNullException(nameof(request) + " || " + nameof(ASF.GlobalConfig));
 			}
 
-			(bool valid, string errorMessage) = request.GlobalConfig.CheckValidation();
+			if (request.GlobalConfig == null) {
+				return BadRequest(new GenericResponse(false, string.Format(Strings.ErrorIsEmpty, nameof(request.GlobalConfig))));
+			}
+
+			(bool valid, string? errorMessage) = request.GlobalConfig.CheckValidation();
 
 			if (!valid) {
 				return BadRequest(new GenericResponse(false, errorMessage));
@@ -125,13 +152,13 @@ namespace ArchiSteamFarm.IPC.Controllers.Api {
 		[HttpPost("Update")]
 		[ProducesResponseType(typeof(GenericResponse<string>), (int) HttpStatusCode.OK)]
 		public async Task<ActionResult<GenericResponse<string>>> UpdatePost() {
-			(bool success, string message, Version version) = await Actions.Update().ConfigureAwait(false);
+			(bool success, string? message, Version? version) = await Actions.Update().ConfigureAwait(false);
 
 			if (string.IsNullOrEmpty(message)) {
 				message = success ? Strings.Success : Strings.WarningFailed;
 			}
 
-			return Ok(new GenericResponse<string>(success, message, version?.ToString()));
+			return Ok(new GenericResponse<string>(success, message!, version?.ToString()));
 		}
 	}
 }
