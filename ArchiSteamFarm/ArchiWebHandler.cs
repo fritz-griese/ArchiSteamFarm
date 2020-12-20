@@ -1471,12 +1471,20 @@ namespace ArchiSteamFarm {
 					continue;
 				}
 
+				Dictionary<string, JToken> additionalProperties = new Dictionary<string, JToken>(description.Children.Count);
+				description.Children.ForEach(keyValue => {
+				if (keyValue.Value is string && !new string[] { "appid", "classid", "instanceid", "marketable", "tradable" }.Contains(keyValue.Name)) {
+						additionalProperties.Add(keyValue.Name, keyValue.Value);
+					}
+				});
+
 				Steam.InventoryResponse.Description parsedDescription = new Steam.InventoryResponse.Description {
 					AppID = appID,
 					ClassID = classID,
 					InstanceID = instanceID,
 					Marketable = description["marketable"].AsBoolean(),
-					Tradable = true // We're parsing active trade offers, we can assume as much
+					Tradable = true, // We're parsing active trade offers, we can assume as much
+					AdditionalProperties = additionalProperties
 				};
 
 				List<KeyValue> tags = description["tags"].Children;
