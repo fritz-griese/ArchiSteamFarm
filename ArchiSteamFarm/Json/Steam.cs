@@ -209,7 +209,7 @@ namespace ArchiSteamFarm.Json {
 #pragma warning restore IDE0051
 
 			// Constructed from trades being received or plugins
-			public Asset(uint appID, ulong contextID, ulong classID, uint amount, ulong instanceID = 0, ulong assetID = 0, bool marketable = true, bool tradable = true, ImmutableHashSet<Tag>? tags = null, uint realAppID = 0, EType type = EType.Unknown, ERarity rarity = ERarity.Unknown) {
+			public Asset(uint appID, ulong contextID, ulong classID, uint amount, ulong instanceID = 0, ulong assetID = 0, bool marketable = true, bool tradable = true, ImmutableHashSet<Tag>? tags = null, uint realAppID = 0, EType type = EType.Unknown, ERarity rarity = ERarity.Unknown, Dictionary<string, JToken>? additionalProperties = null) {
 				if ((appID == 0) || (contextID == 0) || (classID == 0) || (amount == 0)) {
 					throw new ArgumentNullException(nameof(appID) + " || " + nameof(contextID) + " || " + nameof(classID) + " || " + nameof(amount));
 				}
@@ -225,6 +225,7 @@ namespace ArchiSteamFarm.Json {
 				RealAppID = realAppID;
 				Type = type;
 				Rarity = rarity;
+				AdditionalProperties = additionalProperties;
 
 				if ((tags != null) && (tags.Count > 0)) {
 					Tags = tags;
@@ -522,7 +523,7 @@ namespace ArchiSteamFarm.Json {
 				}
 
 				[JsonExtensionData]
-				internal Dictionary<string, JToken>? AdditionalProperties {
+				internal Dictionary<string, JToken> AdditionalProperties {
 					get;
 					[UsedImplicitly]
 					set;

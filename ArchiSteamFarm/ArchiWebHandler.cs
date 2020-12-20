@@ -1428,7 +1428,7 @@ namespace ArchiSteamFarm {
 
 				Dictionary<string, JToken> additionalProperties = new Dictionary<string, JToken>(description.Children.Count);
 				description.Children.ForEach(keyValue => {
-				if (keyValue.Value is string && !new string[] { "appid", "classid", "instanceid", "marketable", "tradable" }.Contains(keyValue.Name)) {
+				if (keyValue.Value is string && keyValue.Name != null && !new string[] { "appid", "classid", "instanceid", "marketable", "tradable" }.Contains(keyValue.Name)) {
 						additionalProperties.Add(keyValue.Name, keyValue.Value);
 					}
 				});
@@ -2404,6 +2404,7 @@ namespace ArchiSteamFarm {
 				uint realAppID = 0;
 				Steam.Asset.EType type = Steam.Asset.EType.Unknown;
 				Steam.Asset.ERarity rarity = Steam.Asset.ERarity.Unknown;
+				Dictionary<string, JToken>? additionalProperties = null;
 
 				if (descriptions.TryGetValue(key, out Steam.InventoryResponse.Description? description)) {
 					marketable = description.Marketable;
@@ -2412,9 +2413,10 @@ namespace ArchiSteamFarm {
 					realAppID = description.RealAppID;
 					type = description.Type;
 					rarity = description.Rarity;
+					additionalProperties = description.AdditionalProperties;
 				}
 
-				Steam.Asset steamAsset = new Steam.Asset(appID, contextID, classID, amount, instanceID, assetID, marketable, tradable, tags, realAppID, type, rarity);
+				Steam.Asset steamAsset = new Steam.Asset(appID, contextID, classID, amount, instanceID, assetID, marketable, tradable, tags, realAppID, type, rarity, additionalProperties);
 				output.Add(steamAsset);
 			}
 
