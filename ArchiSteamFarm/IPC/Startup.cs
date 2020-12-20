@@ -171,7 +171,7 @@ namespace ArchiSteamFarm.IPC {
 					);
 
 					options.CustomSchemaIds(type => type.GetUnifiedName());
-					options.EnableAnnotations(true, true);
+					options.EnableAnnotations(true);
 					options.SchemaFilter<EnumSchemaFilter>();
 
 					options.SwaggerDoc(
