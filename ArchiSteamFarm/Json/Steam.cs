@@ -96,7 +96,7 @@ namespace ArchiSteamFarm.Json {
 			public string InfoText { get; internal set; }
 
 			[JsonExtensionData]
-			internal Dictionary<string, JToken>? AdditionalProperties { private get; set; }
+			public Dictionary<string, JToken>? AdditionalProperties { get; internal set; }
 
 #pragma warning disable IDE0051
 			[JsonProperty(PropertyName = "amount", Required = Required.Always)]
@@ -352,6 +352,47 @@ namespace ArchiSteamFarm.Json {
 
 				return ItemsToGive.All(item => (item.AppID == Asset.SteamAppID) && (item.ContextID == Asset.SteamCommunityContextID) && acceptedTypes.Contains(item.Type));
 			}
+		}
+
+		public class OrderConverter : JsonConverter {
+			public override bool CanConvert(Type objectType) {
+				return objectType == typeof(List<(float, int, string)>);
+			}
+
+			public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer) {
+				if (reader.TokenType == JsonToken.Null)
+					return null;
+				var array = JArray.Load(reader);
+				var orders = (existingValue as List<(float, int, string)> ?? new List<(float, int, string)>());
+				int totalAmount = 0;
+				foreach (var entry in array) {
+					int amount = entry[1].ToObject<int>() - totalAmount;
+					orders.Add((entry[0].ToObject<float>(), amount, entry[2].ToString()));
+					totalAmount = totalAmount + amount;
+					entry.ToString();
+				}
+				return orders;
+			}
+
+			public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer) {
+				throw new NotImplementedException();
+			}
+		}
+
+		public sealed class OrderHistogram : EResultResponse {
+			[JsonProperty(PropertyName = "success", Required = Required.DisallowNull)]
+			internal readonly bool Success;
+
+			[JsonProperty(PropertyName = "buy_order_graph", Required = Required.DisallowNull)]
+			[JsonConverter(typeof(OrderConverter))]
+			internal readonly List<(float, int, string)> BuyOrders;
+
+			[JsonProperty(PropertyName = "sell_order_graph", Required = Required.DisallowNull)]
+			[JsonConverter(typeof(OrderConverter))]
+			internal readonly List<(float, int, string)> SellOrders;
+
+			[JsonConstructor]
+			private OrderHistogram() { }
 		}
 
 		[SuppressMessage("ReSharper", "ClassCannotBeInstantiated")]

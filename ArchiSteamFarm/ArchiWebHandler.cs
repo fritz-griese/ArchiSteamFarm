@@ -1603,6 +1603,23 @@ namespace ArchiSteamFarm {
 			return response?.Content;
 		}
 
+		public async Task<IDocument> GetMarketPage(string appId, string marketHashName) {
+			string request = $"/market/listings/{appId}/{marketHashName.Replace(" ", "%20")}";
+
+			WebBrowser.HtmlDocumentResponse? response = await UrlGetToHtmlDocumentWithSession(SteamCommunityURL, request, checkSessionPreemptively: false).ConfigureAwait(false);
+
+			return response?.Content;
+		}
+
+		public async Task<Steam.OrderHistogram> getOrderHistorgramm(string itemNameId) {
+			// TODO: support different languages and currencies?
+			string request = $"/market/itemordershistogram?country=DE&language=german&currency=3&item_nameid={itemNameId}&two_factor=0";
+
+			WebBrowser.ObjectResponse<Steam.OrderHistogram>? response = await UrlGetToJsonObjectWithSession<Steam.OrderHistogram>(SteamCommunityURL, request, checkSessionPreemptively: false).ConfigureAwait(false);
+
+			return response?.Content;
+		}
+
 		internal async Task<IDocument?> GetConfirmationsPage(string deviceID, string confirmationHash, uint time) {
 			if (string.IsNullOrEmpty(deviceID) || string.IsNullOrEmpty(confirmationHash) || (time == 0)) {
 				throw new ArgumentNullException(nameof(deviceID) + " || " + nameof(confirmationHash) + " || " + nameof(time));

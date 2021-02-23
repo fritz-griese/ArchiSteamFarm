@@ -499,6 +499,11 @@ namespace ArchiSteamFarm {
 		private async Task<int> GetSetSize(string realAppId) {
 			IDocument badgeInfoPage = await Bot.ArchiWebHandler.GetBadgeInfoPage(realAppId).ConfigureAwait(false);
 
+			if (badgeInfoPage == null) {
+				Bot.ArchiLogger.LogGenericError($"Could not retrieve set size for app {realAppId}.");
+				return -1;
+			}
+
 			IElement infoText = badgeInfoPage.All.Where(tag => tag.ClassName == "badge_card_set_text ellipsis" && tag.Children.Count() == 0).First();
 
 			Match match = Regex.Match(infoText.Text().Trim(), @"\d+\s*of\s*(\d+),");
@@ -509,7 +514,35 @@ namespace ArchiSteamFarm {
 			}
 
 			return match.Groups[1].Value.ToInteger(-1);
+		}
 
+		// To get the order histogramm, we have to obtain the item_nameid, which can be found in a script tag on the market page.
+		private async Task<Steam.OrderHistogram> GetOrders(Steam.Asset asset) {
+			string marketHashName = asset.AdditionalProperties["market_hash_name"].ToString();
+			if (marketHashName == null) {
+				Bot.ArchiLogger.LogGenericDebug($"Asset {asset.InfoText} has no market_hash_name. Cannot get orders.");
+				return null;
+			}
+
+			IDocument marketPage = await Bot.ArchiWebHandler.GetMarketPage(asset.AppID.ToString(), marketHashName).ConfigureAwait(false);
+
+			List<IElement> scripts = marketPage.All.Where(tag => tag.LocalName == "script" && !tag.TextContent.Trim().Equals("")).ToList();
+
+			Match match = null;
+			int i = scripts.Count;
+			do {
+				i--;
+				match = Regex.Match(scripts[i].Text(), @"Market_LoadOrderSpread\(\s*(\d+)\s*\)");
+			} while (i > 0 && !match.Success);
+
+			if (!match.Success) {
+				Bot.ArchiLogger.LogGenericError($"Could not retrieve item_nameid for asset {asset.InfoText} from market page. Therfore we cannot obtain the order histogram.");
+				return null;
+			}
+
+			string nameId = match.Groups[1].Value;
+
+			return await Bot.ArchiWebHandler.getOrderHistorgramm(nameId).ConfigureAwait(false);
 		}
 
 		private async Task<ParseTradeResult.EResult> ShouldAcceptTrade(Steam.TradeOffer tradeOffer) {
