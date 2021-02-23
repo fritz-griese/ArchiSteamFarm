@@ -91,6 +91,10 @@ namespace ArchiSteamFarm.Json {
 			[PublicAPI]
 			public EType Type { get; internal set; }
 
+			[JsonIgnore]
+			[PublicAPI]
+			public string InfoText { get; internal set; }
+
 			[JsonExtensionData]
 			internal Dictionary<string, JToken>? AdditionalProperties { private get; set; }
 
@@ -226,6 +230,10 @@ namespace ArchiSteamFarm.Json {
 				Type = type;
 				Rarity = rarity;
 				AdditionalProperties = additionalProperties;
+
+				string name = AdditionalProperties["name"].ToString();
+				string typeInfo = AdditionalProperties["type"].ToString();
+				InfoText = $"{assetID} ({name}, {typeInfo})";
 
 				if ((tags != null) && (tags.Count > 0)) {
 					Tags = tags;
