@@ -24,8 +24,11 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using AngleSharp.Dom;
+using AngleSharp.Text;
 using ArchiSteamFarm.Collections;
 using ArchiSteamFarm.Json;
 using ArchiSteamFarm.Localization;
@@ -491,6 +494,22 @@ namespace ArchiSteamFarm {
 			}
 
 			return (new ParseTradeResult(tradeOffer.TradeOfferID, result, tradeOffer.ItemsToReceive), tradeRequiresMobileConfirmation);
+		}
+
+		private async Task<int> GetSetSize(string realAppId) {
+			IDocument badgeInfoPage = await Bot.ArchiWebHandler.GetBadgeInfoPage(realAppId).ConfigureAwait(false);
+
+			IElement infoText = badgeInfoPage.All.Where(tag => tag.ClassName == "badge_card_set_text ellipsis" && tag.Children.Count() == 0).First();
+
+			Match match = Regex.Match(infoText.Text().Trim(), @"\d+\s*of\s*(\d+),");
+
+			if (!match.Success) {
+				Bot.ArchiLogger.LogGenericError($"Could not retrieve set size for app {realAppId}.");
+				return -1;
+			}
+
+			return match.Groups[1].Value.ToInteger(-1);
+
 		}
 
 		private async Task<ParseTradeResult.EResult> ShouldAcceptTrade(Steam.TradeOffer tradeOffer) {

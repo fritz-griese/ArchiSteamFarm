@@ -1595,6 +1595,14 @@ namespace ArchiSteamFarm {
 			return response?.Content;
 		}
 
+		internal async Task<IDocument> GetBadgeInfoPage(string realAppId) {
+			string request = $"/my/gamecards/{realAppId}?l=english";
+
+			WebBrowser.HtmlDocumentResponse? response = await UrlGetToHtmlDocumentWithSession(SteamCommunityURL, request, checkSessionPreemptively: false).ConfigureAwait(false);
+
+			return response?.Content;
+		}
+
 		internal async Task<IDocument?> GetConfirmationsPage(string deviceID, string confirmationHash, uint time) {
 			if (string.IsNullOrEmpty(deviceID) || string.IsNullOrEmpty(confirmationHash) || (time == 0)) {
 				throw new ArgumentNullException(nameof(deviceID) + " || " + nameof(confirmationHash) + " || " + nameof(time));
