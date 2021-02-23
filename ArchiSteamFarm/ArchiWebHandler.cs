@@ -1620,6 +1620,14 @@ namespace ArchiSteamFarm {
 			return response?.Content;
 		}
 
+		public async Task<Steam.PriceOverview> getPriceOverview(string appId, string marketHashName) {
+			string request = $"/market/priceoverview/?country=DE&currency=3&appid={appId}&market_hash_name={marketHashName.Replace(" ", "%20")}";
+
+			WebBrowser.ObjectResponse<Steam.PriceOverview> response = await UrlGetToJsonObjectWithSession<Steam.PriceOverview>(SteamCommunityURL, request, checkSessionPreemptively: false).ConfigureAwait(false);
+
+			return response?.Content;
+		}
+
 		internal async Task<IDocument?> GetConfirmationsPage(string deviceID, string confirmationHash, uint time) {
 			if (string.IsNullOrEmpty(deviceID) || string.IsNullOrEmpty(confirmationHash) || (time == 0)) {
 				throw new ArgumentNullException(nameof(deviceID) + " || " + nameof(confirmationHash) + " || " + nameof(time));

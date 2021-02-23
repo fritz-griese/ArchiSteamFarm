@@ -395,6 +395,17 @@ namespace ArchiSteamFarm.Json {
 			private OrderHistogram() { }
 		}
 
+		public sealed class PriceOverview : EResultResponse {
+			[JsonProperty(PropertyName = "success", Required = Required.DisallowNull)]
+			internal readonly bool Success;
+
+			[JsonProperty(PropertyName = "volume")]
+			internal readonly int Volume;
+
+			[JsonConstructor]
+			private PriceOverview() { }
+		}
+
 		[SuppressMessage("ReSharper", "ClassCannotBeInstantiated")]
 		internal sealed class InventoryResponse : EResultResponse {
 			[JsonProperty(PropertyName = "assets", Required = Required.DisallowNull)]

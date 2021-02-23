@@ -542,7 +542,41 @@ namespace ArchiSteamFarm {
 
 			string nameId = match.Groups[1].Value;
 
-			return await Bot.ArchiWebHandler.getOrderHistorgramm(nameId).ConfigureAwait(false);
+			Steam.OrderHistogram orders = await Bot.ArchiWebHandler.getOrderHistorgramm(nameId).ConfigureAwait(false);
+
+			if (!orders.Success) {
+				Bot.ArchiLogger.LogGenericError($"Could not retrieve order histogramm for asset {asset.InfoText}.");
+
+				return null;
+			}
+
+			return orders;
+		}
+
+		private async Task<int> getRecentlySold(Steam.Asset asset) {
+			string marketHashName = asset.AdditionalProperties["market_hash_name"].ToString();
+
+			if (marketHashName == null || marketHashName.StripLeadingTrailingSpaces() == "") {
+				Bot.ArchiLogger.LogGenericDebug($"Asset {asset.InfoText} has no market_hash_name. Cannot get number of recently sold items.");
+
+				return -1;
+			}
+
+			if (!asset.Marketable) {
+				Bot.ArchiLogger.LogGenericDebug($"Asset {asset.InfoText} is not marketable. Cannot get number of recently sold items.");
+
+				return -1;
+			}
+
+			Steam.PriceOverview priceOverview = await Bot.ArchiWebHandler.getPriceOverview(asset.AppID.ToString(), marketHashName).ConfigureAwait(false);
+
+			if (!priceOverview.Success) {
+				Bot.ArchiLogger.LogGenericError($"Could not retrieve recently sold items for asset {asset.InfoText}.");
+
+				return -1;
+			}
+
+			return priceOverview.Volume;
 		}
 
 		private async Task<ParseTradeResult.EResult> ShouldAcceptTrade(Steam.TradeOffer tradeOffer) {
