@@ -42,7 +42,7 @@ namespace ArchiSteamFarm.Json {
 
 			[JsonIgnore]
 			[PublicAPI]
-			public IReadOnlyDictionary<string, JToken>? AdditionalPropertiesReadOnly => AdditionalProperties;
+			public KeyValue AdditionalProperties { get; internal set; }
 
 			[JsonIgnore]
 			[PublicAPI]
@@ -95,8 +95,6 @@ namespace ArchiSteamFarm.Json {
 			[PublicAPI]
 			public string InfoText { get; internal set; }
 
-			[JsonExtensionData]
-			public Dictionary<string, JToken>? AdditionalProperties { get; internal set; }
 
 #pragma warning disable IDE0051
 			[JsonProperty(PropertyName = "amount", Required = Required.Always)]
@@ -213,7 +211,7 @@ namespace ArchiSteamFarm.Json {
 #pragma warning restore IDE0051
 
 			// Constructed from trades being received or plugins
-			public Asset(uint appID, ulong contextID, ulong classID, uint amount, ulong instanceID = 0, ulong assetID = 0, bool marketable = true, bool tradable = true, ImmutableHashSet<Tag>? tags = null, uint realAppID = 0, EType type = EType.Unknown, ERarity rarity = ERarity.Unknown, Dictionary<string, JToken>? additionalProperties = null) {
+			public Asset(uint appID, ulong contextID, ulong classID, uint amount, ulong instanceID = 0, ulong assetID = 0, bool marketable = true, bool tradable = true, ImmutableHashSet<Tag>? tags = null, uint realAppID = 0, EType type = EType.Unknown, ERarity rarity = ERarity.Unknown, KeyValue additionalProperties = null) {
 				if ((appID == 0) || (contextID == 0) || (classID == 0) || (amount == 0)) {
 					throw new ArgumentNullException(nameof(appID) + " || " + nameof(contextID) + " || " + nameof(classID) + " || " + nameof(amount));
 				}
@@ -406,6 +404,17 @@ namespace ArchiSteamFarm.Json {
 			private PriceOverview() { }
 		}
 
+		public sealed class GooResponse : EResultResponse {
+			[JsonProperty(PropertyName = "success", Required = Required.DisallowNull)]
+			internal readonly bool Success;
+
+			[JsonProperty(PropertyName = "goo_value")]
+			internal readonly int GooValue;
+
+			[JsonConstructor]
+			private GooResponse() { }
+		}
+
 		[SuppressMessage("ReSharper", "ClassCannotBeInstantiated")]
 		internal sealed class InventoryResponse : EResultResponse {
 			[JsonProperty(PropertyName = "assets", Required = Required.DisallowNull)]
@@ -582,12 +591,14 @@ namespace ArchiSteamFarm.Json {
 					}
 				}
 
-				[JsonExtensionData]
-				internal Dictionary<string, JToken> AdditionalProperties {
-					get;
-					[UsedImplicitly]
-					set;
-				}
+				//[JsonExtensionData]
+				//internal Dictionary<string, JToken> AdditionalProperties {
+				//	get;
+				//	[UsedImplicitly]
+				//	set;
+				//}
+
+				internal KeyValue AdditionalProperties { get; set; }
 
 				[JsonProperty(PropertyName = "appid", Required = Required.Always)]
 				internal uint AppID { get; set; }

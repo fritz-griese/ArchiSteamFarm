@@ -1426,20 +1426,13 @@ namespace ArchiSteamFarm {
 					continue;
 				}
 
-				Dictionary<string, JToken> additionalProperties = new Dictionary<string, JToken>(description.Children.Count);
-				description.Children.ForEach(keyValue => {
-				if (keyValue.Value is string && keyValue.Name != null && !new string[] { "appid", "classid", "instanceid", "marketable", "tradable" }.Contains(keyValue.Name)) {
-						additionalProperties.Add(keyValue.Name, keyValue.Value);
-					}
-				});
-
 				Steam.InventoryResponse.Description parsedDescription = new Steam.InventoryResponse.Description {
 					AppID = appID,
 					ClassID = classID,
 					InstanceID = instanceID,
 					Marketable = description["marketable"].AsBoolean(),
 					Tradable = true, // We're parsing active trade offers, we can assume as much
-					AdditionalProperties = additionalProperties
+					AdditionalProperties = description
 				};
 
 				List<KeyValue> tags = description["tags"].Children;
@@ -1624,6 +1617,14 @@ namespace ArchiSteamFarm {
 			string request = $"/market/priceoverview/?country=DE&currency=3&appid={appId}&market_hash_name={marketHashName.Replace(" ", "%20")}";
 
 			WebBrowser.ObjectResponse<Steam.PriceOverview> response = await UrlGetToJsonObjectWithSession<Steam.PriceOverview>(SteamCommunityURL, request, checkSessionPreemptively: false).ConfigureAwait(false);
+
+			return response?.Content;
+		}
+
+		public async Task<Steam.GooResponse> getGooValue(string realAppId, string type) {
+			string request = $"/auction/ajaxgetgoovalueforitemtype/?appid={realAppId}&item_type={type}&border_color=0";
+
+			WebBrowser.ObjectResponse<Steam.GooResponse>response = await UrlGetToJsonObjectWithSession<Steam.GooResponse>(SteamCommunityURL, request, checkSessionPreemptively: false).ConfigureAwait(false);
 
 			return response?.Content;
 		}
@@ -2437,7 +2438,7 @@ namespace ArchiSteamFarm {
 				uint realAppID = 0;
 				Steam.Asset.EType type = Steam.Asset.EType.Unknown;
 				Steam.Asset.ERarity rarity = Steam.Asset.ERarity.Unknown;
-				Dictionary<string, JToken>? additionalProperties = null;
+				KeyValue additionalProperties = null;
 
 				if (descriptions.TryGetValue(key, out Steam.InventoryResponse.Description? description)) {
 					marketable = description.Marketable;

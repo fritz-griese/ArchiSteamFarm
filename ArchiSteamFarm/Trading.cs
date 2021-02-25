@@ -34,6 +34,7 @@ using ArchiSteamFarm.Json;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Plugins;
 using JetBrains.Annotations;
+using Newtonsoft.Json.Linq;
 using SteamKit2;
 
 namespace ArchiSteamFarm {
@@ -553,7 +554,7 @@ namespace ArchiSteamFarm {
 			return orders;
 		}
 
-		private async Task<int> getRecentlySold(Steam.Asset asset) {
+		private async Task<int> GetRecentlySold(Steam.Asset asset) {
 			string marketHashName = asset.AdditionalProperties["market_hash_name"].ToString();
 
 			if (marketHashName == null || marketHashName.StripLeadingTrailingSpaces() == "") {
@@ -577,6 +578,50 @@ namespace ArchiSteamFarm {
 			}
 
 			return priceOverview.Volume;
+		}
+
+		private async Task<int> GetGooValue(Steam.Asset asset) {
+			if (!(asset.Type == Steam.Asset.EType.Emoticon || asset.Type == Steam.Asset.EType.FoilTradingCard || asset.Type == Steam.Asset.EType.TradingCard || asset.Type == Steam.Asset.EType.ProfileBackground || asset.Type == Steam.Asset.EType.SaleItem)) {
+				Bot.ArchiLogger.LogGenericDebug($"Asset {asset.InfoText} cannot be dismanteled into gems.");
+
+				return -1;
+			}
+
+			List<KeyValue> ownerActions = asset.AdditionalProperties["owner_actions"].Children;
+			bool foundGrindGooLink = false;
+			string link = null;
+
+			foreach (KeyValue action in ownerActions) {
+				if (action.Children[1].Value == "#TradingCards_GrindIntoGoo") {
+					foundGrindGooLink = true;
+					link = action.Children[0].Value;
+					break;
+				}
+			}
+
+			if (!foundGrindGooLink) {
+				Bot.ArchiLogger.LogGenericError($"Could not find grind goo link for asset {asset.InfoText}.");
+				return -1;
+			}
+
+			Match match = Regex.Match(link, @"javascript:GetGooValue\(\s*'.*',\s*'.*',\s*\d+,\s*(\d+),\s*.*\s*\)");
+
+			if (!match.Success) {
+				Bot.ArchiLogger.LogGenericError($"Could not retrieve item_type for asset {asset.InfoText}. Cannot get goo value.");
+				return -1;
+			}
+
+			string itemType = match.Groups[1].Value;
+
+			Steam.GooResponse gooResponse = await Bot.ArchiWebHandler.getGooValue(asset.RealAppID.ToString(), itemType).ConfigureAwait(false);
+
+			if (!gooResponse.Success) {
+				Bot.ArchiLogger.LogGenericError($"Could not retrieve goo value for asset {asset.InfoText}.");
+
+				return -1;
+			}
+
+			return gooResponse.GooValue;
 		}
 
 		private async Task<ParseTradeResult.EResult> ShouldAcceptTrade(Steam.TradeOffer tradeOffer) {
