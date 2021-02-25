@@ -434,7 +434,12 @@ namespace ArchiSteamFarm {
 				return (new ParseTradeResult(tradeOffer.TradeOfferID, ParseTradeResult.EResult.Ignored, tradeOffer.ItemsToReceive), false);
 			}
 
+			HashSet<AssetValueInfo> receivingAssetsValueInfo = await GetAdditionalAssetInfo(tradeOffer.ItemsToReceive).ConfigureAwait(false);
+
+			HashSet<AssetValueInfo> givingAssetsValueInfo = await GetAdditionalAssetInfo(tradeOffer.ItemsToGive).ConfigureAwait(false);
+
 			ParseTradeResult.EResult result = await ShouldAcceptTrade(tradeOffer).ConfigureAwait(false);
+
 			bool tradeRequiresMobileConfirmation = false;
 
 			switch (result) {
@@ -519,7 +524,7 @@ namespace ArchiSteamFarm {
 
 		// To get the order histogramm, we have to obtain the item_nameid, which can be found in a script tag on the market page.
 		private async Task<Steam.OrderHistogram> GetOrders(Steam.Asset asset) {
-			string marketHashName = asset.AdditionalProperties["market_hash_name"].ToString();
+			string marketHashName = asset.AdditionalProperties["market_hash_name"].Value.ToString();
 			if (marketHashName == null) {
 				Bot.ArchiLogger.LogGenericDebug($"Asset {asset.InfoText} has no market_hash_name. Cannot get orders.");
 				return null;
@@ -555,7 +560,7 @@ namespace ArchiSteamFarm {
 		}
 
 		private async Task<int> GetRecentlySold(Steam.Asset asset) {
-			string marketHashName = asset.AdditionalProperties["market_hash_name"].ToString();
+			string marketHashName = asset.AdditionalProperties["market_hash_name"].Value.ToString();
 
 			if (marketHashName == null || marketHashName.StripLeadingTrailingSpaces() == "") {
 				Bot.ArchiLogger.LogGenericDebug($"Asset {asset.InfoText} has no market_hash_name. Cannot get number of recently sold items.");
@@ -622,6 +627,56 @@ namespace ArchiSteamFarm {
 			}
 
 			return gooResponse.GooValue;
+		}
+
+		private async Task<HashSet<AssetValueInfo>> GetAdditionalAssetInfo(HashSet<Steam.Asset> assets) {
+			HashSet<AssetValueInfo> result = new HashSet<AssetValueInfo>();
+			// For every realAppId, we only have to query setSize once.
+			Dictionary<uint, int> realAppIds = new Dictionary<uint, int>();
+			// For every classId, we only have to query market info once. Output of the dictionary is (orders, recentlySold, gooValue).
+			Dictionary<ulong, (Steam.OrderHistogram, int, int)> classIds = new Dictionary<ulong, (Steam.OrderHistogram, int, int)>();
+
+			foreach (Steam.Asset asset in assets) {
+				Bot.ArchiLogger.LogGenericDebug($"Getting extra asset info for asset {asset.InfoText}");
+
+				Steam.OrderHistogram orders;
+
+				int recentlySold;
+
+				int gooValue;
+
+				if (classIds.TryGetValue(asset.ClassID, out (Steam.OrderHistogram, int, int) classIdOut)) {
+					orders = classIdOut.Item1;
+
+					recentlySold = classIdOut.Item2;
+
+					gooValue = classIdOut.Item3;
+				} else {
+					orders = await GetOrders(asset).ConfigureAwait(false);
+
+					recentlySold = await GetRecentlySold(asset).ConfigureAwait(false);
+
+					gooValue = await GetGooValue(asset).ConfigureAwait(false);
+
+					classIds.Add(asset.ClassID, (orders, recentlySold, gooValue));
+				}
+
+				int setSize = -1;
+
+				if (asset.Type == Steam.Asset.EType.TradingCard || asset.Type == Steam.Asset.EType.FoilTradingCard) {
+					if (realAppIds.TryGetValue(asset.RealAppID, out int realAppIdOut)) {
+						setSize = realAppIdOut;
+					} else {
+						setSize = await GetSetSize(asset.RealAppID.ToString()).ConfigureAwait(false);
+
+						realAppIds.Add(asset.RealAppID, setSize);
+					}
+				}
+
+				result.Add(new AssetValueInfo(asset, orders, recentlySold, setSize, gooValue));
+			}
+
+			return result;
 		}
 
 		private async Task<ParseTradeResult.EResult> ShouldAcceptTrade(Steam.TradeOffer tradeOffer) {
@@ -808,6 +863,26 @@ namespace ArchiSteamFarm {
 				Ignored,
 				Rejected,
 				TryAgain
+			}
+		}
+
+		internal class AssetValueInfo {
+			public Steam.Asset Asset { get; internal set; }
+
+			public Steam.OrderHistogram Orders { get; internal set; }
+
+			public int RecentlySold { get; internal set; }
+
+			public int SetSize { get; internal set; }
+
+			public int GooValue { get; internal set; }
+
+			internal AssetValueInfo(Steam.Asset asset, Steam.OrderHistogram orders, int recentlySold, int setSize, int gooValue) {
+				Asset = asset;
+				Orders = orders;
+				RecentlySold = recentlySold;
+				SetSize = setSize;
+				GooValue = gooValue;
 			}
 		}
 	}
